@@ -2,9 +2,15 @@ import React, { createContext, useContext, useReducer } from 'react';
 
 const CanvasContext = createContext();
 
+const ROOT_LEVEL_ID = 'root';
+
 const initialState = {
-  levels: new Map(),
-  currentLevelId: null,
+  levels: new Map([[ROOT_LEVEL_ID, {
+    id: ROOT_LEVEL_ID,
+    boxes: [],
+    lines: []
+  }]]),
+  currentLevelId: ROOT_LEVEL_ID,
   levelStack: [],
   selectedBox: null,
   isConnecting: false,
