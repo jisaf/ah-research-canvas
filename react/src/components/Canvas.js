@@ -9,8 +9,10 @@ function Canvas() {
   const [hoveredBox, setHoveredBox] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [startBox, setStartBox] = useState(null);
+  const [startNode, setStartNode] = useState(null);
   const [editingBox, setEditingBox] = useState(null);
   const [editingText, setEditingText] = useState('');
+  const [hoveredNode, setHoveredNode] = useState(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -59,10 +61,13 @@ function Canvas() {
       const startBox = currentLevel.boxes.find(b => b.id === line.startBoxId);
       const endBox = currentLevel.boxes.find(b => b.id === line.endBoxId);
       
-      if (startBox && endBox) {
+      if (startBox && endBox && line.startPosition && line.endPosition) {
+        const startNode = getBoxNodes(startBox).find(n => n.position === line.startPosition);
+        const endNode = getBoxNodes(endBox).find(n => n.position === line.endPosition);
+        
         ctx.beginPath();
-        ctx.moveTo(startBox.x + startBox.width / 2, startBox.y + startBox.height / 2);
-        ctx.lineTo(endBox.x + endBox.width / 2, endBox.y + endBox.height / 2);
+        ctx.moveTo(startNode.x, startNode.y);
+        ctx.lineTo(endNode.x, endNode.y);
         ctx.stroke();
       }
     });
@@ -79,27 +84,17 @@ function Canvas() {
       // Draw connection nodes if box is hovered
       if (hoveredBox && hoveredBox.id === box.id) {
         const nodeRadius = 5;
-        ctx.fillStyle = '#4CAF50';
+        const nodes = getBoxNodes(box);
         
-        // Top node
-        ctx.beginPath();
-        ctx.arc(box.x + box.width / 2, box.y, nodeRadius, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Right node
-        ctx.beginPath();
-        ctx.arc(box.x + box.width, box.y + box.height / 2, nodeRadius, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Bottom node
-        ctx.beginPath();
-        ctx.arc(box.x + box.width / 2, box.y + box.height, nodeRadius, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Left node
-        ctx.beginPath();
-        ctx.arc(box.x, box.y + box.height / 2, nodeRadius, 0, 2 * Math.PI);
-        ctx.fill();
+        nodes.forEach(node => {
+          ctx.fillStyle = hoveredNode && hoveredNode.boxId === box.id && hoveredNode.position === node.position
+            ? '#2196F3'  // Blue for hovered node
+            : '#4CAF50'; // Green for other nodes
+          
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, nodeRadius, 0, 2 * Math.PI);
+          ctx.fill();
+        });
       }
       
       ctx.fillStyle = '#000000';
@@ -128,21 +123,27 @@ function Canvas() {
     const clickedBox = findBoxAt(x, y);
 
     if (clickedBox) {
-      if (isConnecting) {
+      const node = findNearestNode(x, y, clickedBox);
+      
+      if (isConnecting && node) {
         // Complete the connection
         if (clickedBox.id !== startBox.id) {
           dispatch({
             type: 'ADD_LINE',
             startBoxId: startBox.id,
-            endBoxId: clickedBox.id
+            endBoxId: clickedBox.id,
+            startPosition: startNode.position,
+            endPosition: node.position
           });
         }
         setIsConnecting(false);
         setStartBox(null);
-      } else if (isNearNode(x, y, clickedBox)) {
-        // Start a new connection
+        setStartNode(null);
+      } else if (node) {
+        // Start a new connection from the node
         setIsConnecting(true);
         setStartBox(clickedBox);
+        setStartNode(node);
       } else if (e.detail === 2) { // Double click on box
         dispatch({ type: 'ZOOM_INTO_BOX', boxId: clickedBox.id });
       } else if (isClickingText(x, y, clickedBox)) {
@@ -157,18 +158,26 @@ function Canvas() {
     }
   };
 
-  const isNearNode = (x, y, box) => {
-    const nodeRadius = 5;
-    const nodes = [
-      { x: box.x + box.width / 2, y: box.y }, // top
-      { x: box.x + box.width, y: box.y + box.height / 2 }, // right
-      { x: box.x + box.width / 2, y: box.y + box.height }, // bottom
-      { x: box.x, y: box.y + box.height / 2 } // left
+  const getBoxNodes = (box) => {
+    return [
+      { position: 'top', x: box.x + box.width / 2, y: box.y },
+      { position: 'right', x: box.x + box.width, y: box.y + box.height / 2 },
+      { position: 'bottom', x: box.x + box.width / 2, y: box.y + box.height },
+      { position: 'left', x: box.x, y: box.y + box.height / 2 }
     ];
+  };
+
+  const findNearestNode = (x, y, box) => {
+    const nodeRadius = 5;
+    const nodes = getBoxNodes(box);
     
-    return nodes.some(node => 
-      Math.sqrt(Math.pow(x - node.x, 2) + Math.pow(y - node.y, 2)) <= nodeRadius * 2
-    );
+    for (const node of nodes) {
+      const distance = Math.sqrt(Math.pow(x - node.x, 2) + Math.pow(y - node.y, 2));
+      if (distance <= nodeRadius * 2) {
+        return { ...node, boxId: box.id };
+      }
+    }
+    return null;
   };
 
   const handleMouseMove = (e) => {
@@ -183,25 +192,33 @@ function Canvas() {
         x: x - draggedBox.width / 2,
         y: y - draggedBox.height / 2
       });
-    } else if (isConnecting) {
+    } else if (isConnecting && startBox && startNode) {
       // Draw temporary line while connecting
       draw();
       const ctx = canvasRef.current.getContext('2d');
       ctx.beginPath();
-      ctx.moveTo(startBox.x + startBox.width / 2, startBox.y + startBox.height / 2);
+      ctx.moveTo(startNode.x, startNode.y);
       ctx.lineTo(x, y);
       ctx.stroke();
     } else {
       const box = findBoxAt(x, y);
-      if (box && (isNearNode(x, y, box) || !hoveredBox)) {
+      if (box) {
         setHoveredBox(box);
-      } else if (!box) {
+        const node = findNearestNode(x, y, box);
+        setHoveredNode(node);
+      } else {
         setHoveredBox(null);
+        setHoveredNode(null);
       }
     }
   };
 
   const handleMouseUp = () => {
+    if (!hoveredNode && isConnecting) {
+      setIsConnecting(false);
+      setStartBox(null);
+      setStartNode(null);
+    }
     setIsDragging(false);
     setDraggedBox(null);
   };
