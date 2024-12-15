@@ -59,7 +59,9 @@ function canvasReducer(state, action) {
       const newLine = {
         id: crypto.randomUUID(),
         startBoxId: action.startBoxId,
-        endBoxId: action.endBoxId
+        endBoxId: action.endBoxId,
+        startPosition: action.startPosition,
+        endPosition: action.endPosition
       };
       
       const updatedLevelWithLine = {
