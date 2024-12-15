@@ -20,16 +20,27 @@ const initialState = {
 function canvasReducer(state, action) {
   switch (action.type) {
     case 'ADD_BOX':
+      const currentLevel = state.levels.get(state.currentLevelId);
+      const OFFSET_DISTANCE = 20;
+      
+      // Calculate offset based on existing boxes
+      let offsetX = 0;
+      let offsetY = 0;
+      if (currentLevel.boxes.length > 0) {
+        const lastBox = currentLevel.boxes[currentLevel.boxes.length - 1];
+        offsetX = OFFSET_DISTANCE;
+        offsetY = OFFSET_DISTANCE;
+      }
+      
       const newBox = {
         id: crypto.randomUUID(),
-        x: action.x,
-        y: action.y,
+        x: action.x + offsetX,
+        y: action.y + offsetY,
         width: 150,
         height: 100,
         text: 'New Box'
       };
       
-      const currentLevel = state.levels.get(state.currentLevelId);
       const updatedLevel = {
         ...currentLevel,
         boxes: [...currentLevel.boxes, newBox]
@@ -114,6 +125,25 @@ function canvasReducer(state, action) {
         ...state,
         currentLevelId: previousLevelId,
         levelStack: state.levelStack.slice(0, -1)
+      };
+
+    case 'UPDATE_BOX_TEXT':
+      const levelWithText = state.levels.get(state.currentLevelId);
+      const updatedBoxesWithText = levelWithText.boxes.map(box =>
+        box.id === action.boxId ? { ...box, text: action.text } : box
+      );
+      
+      const updatedLevelWithText = {
+        ...levelWithText,
+        boxes: updatedBoxesWithText
+      };
+      
+      const levelsWithUpdatedText = new Map(state.levels);
+      levelsWithUpdatedText.set(state.currentLevelId, updatedLevelWithText);
+      
+      return {
+        ...state,
+        levels: levelsWithUpdatedText
       };
 
     default:
