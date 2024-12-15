@@ -2,6 +2,7 @@ import React from 'react';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import { CanvasProvider } from './context/CanvasContext';
+import './styles/globals.css';
 
 function App() {
   return (
