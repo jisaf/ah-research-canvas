@@ -36,9 +36,11 @@ function canvasReducer(state, action) {
         id: crypto.randomUUID(),
         x: action.x + offsetX,
         y: action.y + offsetY,
-        width: 150,
-        height: 100,
-        text: 'New Box'
+        width: 200,
+        height: 120,
+        text: 'New Box',
+        backgroundColor: '#E9ECEF',
+        borderColor: '#ADB5BD'
       };
       
       const updatedLevel = {
@@ -146,6 +148,25 @@ function canvasReducer(state, action) {
       return {
         ...state,
         levels: levelsWithUpdatedText
+      };
+
+    case 'UPDATE_BOX_STYLE':
+      const levelWithStyle = state.levels.get(state.currentLevelId);
+      const updatedBoxesWithStyle = levelWithStyle.boxes.map(box =>
+        box.id === action.boxId ? { ...box, ...action.style } : box
+      );
+      
+      const updatedLevelWithStyle = {
+        ...levelWithStyle,
+        boxes: updatedBoxesWithStyle
+      };
+      
+      const levelsWithUpdatedStyle = new Map(state.levels);
+      levelsWithUpdatedStyle.set(state.currentLevelId, updatedLevelWithStyle);
+      
+      return {
+        ...state,
+        levels: levelsWithUpdatedStyle
       };
 
     default:
