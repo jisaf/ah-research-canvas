@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useCanvas } from '../context/CanvasContext';
+import { ColorPicker } from './ui/color-picker';
 
 function Canvas() {
   const canvasRef = useRef(null);
@@ -65,21 +66,56 @@ function Canvas() {
         const startNode = getBoxNodes(startBox).find(n => n.position === line.startPosition);
         const endNode = getBoxNodes(endBox).find(n => n.position === line.endPosition);
         
+        // Draw line
         ctx.beginPath();
+        ctx.strokeStyle = '#6C757D';
+        ctx.lineWidth = 2;
         ctx.moveTo(startNode.x, startNode.y);
         ctx.lineTo(endNode.x, endNode.y);
         ctx.stroke();
+        
+        // Draw arrow
+        const angle = Math.atan2(endNode.y - startNode.y, endNode.x - startNode.x);
+        const arrowLength = 15;
+        const arrowWidth = 8;
+        
+        ctx.beginPath();
+        ctx.fillStyle = '#6C757D';
+        ctx.moveTo(endNode.x, endNode.y);
+        ctx.lineTo(
+          endNode.x - arrowLength * Math.cos(angle) + arrowWidth * Math.sin(angle),
+          endNode.y - arrowLength * Math.sin(angle) - arrowWidth * Math.cos(angle)
+        );
+        ctx.lineTo(
+          endNode.x - arrowLength * Math.cos(angle) - arrowWidth * Math.sin(angle),
+          endNode.y - arrowLength * Math.sin(angle) + arrowWidth * Math.cos(angle)
+        );
+        ctx.closePath();
+        ctx.fill();
       }
     });
 
     // Draw boxes
     currentLevel.boxes.forEach(box => {
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#000000';
+      ctx.fillStyle = box.backgroundColor || '#E9ECEF';
+      ctx.strokeStyle = box.borderColor || '#ADB5BD';
       ctx.lineWidth = 2;
       
-      ctx.fillRect(box.x, box.y, box.width, box.height);
-      ctx.strokeRect(box.x, box.y, box.width, box.height);
+      // Draw box with rounded corners
+      const radius = 8;
+      ctx.beginPath();
+      ctx.moveTo(box.x + radius, box.y);
+      ctx.lineTo(box.x + box.width - radius, box.y);
+      ctx.quadraticCurveTo(box.x + box.width, box.y, box.x + box.width, box.y + radius);
+      ctx.lineTo(box.x + box.width, box.y + box.height - radius);
+      ctx.quadraticCurveTo(box.x + box.width, box.y + box.height, box.x + box.width - radius, box.y + box.height);
+      ctx.lineTo(box.x + radius, box.y + box.height);
+      ctx.quadraticCurveTo(box.x, box.y + box.height, box.x, box.y + box.height - radius);
+      ctx.lineTo(box.x, box.y + radius);
+      ctx.quadraticCurveTo(box.x, box.y, box.x + radius, box.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
       
       // Draw connection nodes if box is hovered
       if (hoveredBox && hoveredBox.id === box.id) {
@@ -283,6 +319,45 @@ function Canvas() {
           }}
           autoFocus
         />
+      )}
+      {hoveredBox && (
+        <div
+          style={{
+            position: 'absolute',
+            left: hoveredBox.x + hoveredBox.width + 10,
+            top: hoveredBox.y,
+            display: 'flex',
+            gap: '8px',
+            padding: '8px',
+            background: 'white',
+            borderRadius: '4px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            zIndex: 1000
+          }}
+        >
+          <div className="flex flex-col gap-2">
+            <div className="text-sm font-medium">Background</div>
+            <ColorPicker
+              color={hoveredBox.backgroundColor || '#E9ECEF'}
+              onChange={(color) => dispatch({
+                type: 'UPDATE_BOX_STYLE',
+                boxId: hoveredBox.id,
+                style: { backgroundColor: color }
+              })}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="text-sm font-medium">Border</div>
+            <ColorPicker
+              color={hoveredBox.borderColor || '#ADB5BD'}
+              onChange={(color) => dispatch({
+                type: 'UPDATE_BOX_STYLE',
+                boxId: hoveredBox.id,
+                style: { borderColor: color }
+              })}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
